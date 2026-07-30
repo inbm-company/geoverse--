@@ -3,7 +3,7 @@
 * [지오버스 통합 모니터링 시스템 기능정의서](README.md)
 * [서버 및 서비스 접속 정보](<서버 및 서비스 접속정보.md>)
 * [Geoverse 운영 가이드](운영가이드.md)
-* [PostgreSQL ERD](postgresql-erd.md)
+* [주 DB(PostgreSQL) ERD](db-postgresql-erd.md)
 * [client](client/README.md)
   * [프로그램 명세 — 목차](client/00-목차.md)
   * [앱 진입·라우팅·전역 드로어 — 프로그램 명세](client/01-앱-진입-라우팅-전역-드로어.md)
