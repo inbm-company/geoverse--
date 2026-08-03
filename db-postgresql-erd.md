@@ -1,4 +1,4 @@
-# PostgreSQL ERD
+# 주 DB(PostgreSQL) ERD
 
 Management 서버가 사용하는 PostgreSQL 메타데이터 스키마 ERD다. Collector 서버도 동일 DB에 연결해 `sensor_thresholds`, `sensor_widgets`, `projects` 등을 조회한다.
 
@@ -43,17 +43,17 @@ projects (site_code)               sensor_widgets (site_code)
 
 #### 1.2 UI 개념 ↔ DB 대응
 
-| UI 개념      | DB / API                                   | 설명                               |
-| ---------- | ------------------------------------------ | -------------------------------- |
-| 현장         | `projects` 1행, `/api/projects`             | `site_code`가 전 서버 공통 식별자         |
-| 구역·구간      | `nodes` (ltree), `/api/nodes`              | `path`로 부모-자식 탐색                 |
-| 장비 폴더      | `folders`, `/api/folders`                  | 노드 직하 1뎁스 정리용                    |
-| 장비         | `devices`, `/api/devices`                  | `device_id`가 MQTT·Influx·Redis 키 |
-| 위젯         | `sensor_widgets` 1행, `/api/sensor-widgets` | 화면 표시 단위                         |
-| 위젯 내 채널    | `options.sensorList[]`                     | `deviceId`, `channel`, `name`    |
-| 위젯 내 측정 항목 | `sensorList[].values` 또는 `.items`          | `parseType`에 따라 필드명이 다름          |
-| 알람 임계값     | `sensor_thresholds`, `/api/thresholds`     | `device_id + ch + field_name`    |
-| CCTV       | `cctv_cameras`, `/api/cctv-cameras`        | 위젯 `options.cameras`에서 참조        |
+| UI 개념      | DB / API                                   | 설명                                       |
+| ---------- | ------------------------------------------ | ---------------------------------------- |
+| 현장         | `projects` 1행, `/api/projects`             | `site_code`가 전 서버 공통 식별자                 |
+| 구역·구간      | `nodes` (ltree), `/api/nodes`              | `path`로 부모-자식 탐색                         |
+| 장비 폴더      | `folders`, `/api/folders`                  | 노드 직하 1뎁스 정리용                            |
+| 장비         | `devices`, `/api/devices`                  | `device_id`가 MQTT·Influx·Redis 키         |
+| 위젯         | `sensor_widgets` 1행, `/api/sensor-widgets` | 위젯 UI 및 설정                               |
+| 위젯 내 채널    | `options.sensorList[]`                     | `deviceId`, `channel`, `name`            |
+| 위젯 내 측정 항목 | `sensorList[].values` 또는 `.items`          | `parseType`에 따라 필드명이 다름                  |
+| 알람 기준치     | `sensor_thresholds`, `/api/thresholds`     | `device_id + ch + field_name(센서별 기준치배열)` |
+| CCTV       | `cctv_cameras`, `/api/cctv-cameras`        | 위젯 `options.cameras`에서 참조                |
 
 수집 서버 알람 판정은 `sensor_thresholds`, `sensor_widgets.options`, `projects.alarm_contacts`만 읽는다. **`devices` 테이블은 알람 경로에서 조회하지 않는다.**
 
@@ -269,19 +269,19 @@ MQTT 수집·InfluxDB·Redis에서 쓰는 **장비 식별자**를 등록한다. 
 
 **화면 표시의 최소 단위.** 위젯 1행 = 화면 위젯 1개. 채널·측정 항목·계산식·표시명은 모두 `options` JSONB에 담긴다.
 
-| 컬럼                        | 타입           | 제약                    | 설명                              |
-| ------------------------- | ------------ | --------------------- | ------------------------------- |
-| id                        | SERIAL       | PK                    |                                 |
-| project\_id               | INTEGER      | FK 없음                 | 선택적 프로젝트 참조                     |
-| site\_code                | VARCHAR(50)  |                       | 현장 범위 필터                        |
-| name                      | VARCHAR(100) | NOT NULL              | 위젯 표시명                          |
-| widget\_type              | VARCHAR(50)  | NOT NULL              | `timeseries`, `gauge`, `cctv` 등 |
-| show\_hide                | BOOLEAN      | DEFAULT TRUE          | 화면 노출 여부                        |
-| order\_index              | INTEGER      | DEFAULT 0             | 대시보드 정렬                         |
-| options                   | JSONB        | NOT NULL DEFAULT `{}` | 채널·측정 항목·계산식 정의 (아래 참조)         |
-| is\_active                | BOOLEAN      | DEFAULT TRUE          |                                 |
-| is\_sibling               | BOOLEAN      | DEFAULT FALSE         | 시블링(묶음) 위젯 여부                   |
-| created\_at / updated\_at | TIMESTAMP    |                       |                                 |
+| 컬럼                        | 타입           | 제약                    | 설명                      |
+| ------------------------- | ------------ | --------------------- | ----------------------- |
+| id                        | SERIAL       | PK                    |                         |
+| project\_id               | INTEGER      | FK 없음                 | 선택적 프로젝트 참조             |
+| site\_code                | VARCHAR(50)  |                       | 현장 범위 필터                |
+| name                      | VARCHAR(100) | NOT NULL              | 위젯 표시명                  |
+| widget\_type              | VARCHAR(50)  | NOT NULL              | `widget` , `cctv`       |
+| show\_hide                | BOOLEAN      | DEFAULT TRUE          | 화면 노출 여부                |
+| order\_index              | INTEGER      | DEFAULT 0             | 대시보드 정렬                 |
+| options                   | JSONB        | NOT NULL DEFAULT `{}` | 채널·측정 항목·계산식 정의 (아래 참조) |
+| is\_active                | BOOLEAN      | DEFAULT TRUE          |                         |
+| is\_sibling               | BOOLEAN      | DEFAULT FALSE         | 시블링(묶음) 위젯 여부           |
+| created\_at / updated\_at | TIMESTAMP    |                       |                         |
 
 **API:** `/api/sensor-widgets`\
 **런타임:** 서버 기동 시 `initWidgetChannelCache()`가 `options.deviceChannels`를 메모리 Map에 적재. Collector 알람은 `options.sensorList`를 `deviceId` 기준으로 조회한다.
@@ -488,31 +488,12 @@ flowchart LR
 
 ***
 
-### 9. 확장·인덱스·트리거
-
-| 항목                           | 설명                        |
-| ---------------------------- | ------------------------- |
-| `ltree` 확장                   | `nodes.path` 계층 탐색        |
-| GiST `nodes_path_idx`        | ltree `<@`, `@>` 검색       |
-| `update_updated_at_column()` | 모든 테이블 `updated_at` 자동 갱신 |
-
 ***
 
-### 10. 관련 저장소
+### 9. 관련 저장소
 
 | 저장소        | 용도                    | 사용 서버                             |
 | ---------- | --------------------- | --------------------------------- |
 | PostgreSQL | 메타데이터, 임계값, 계정        | management, collector             |
 | InfluxDB   | 센서 시계열, 알람 이력         | collector, sensor-api             |
 | Redis      | 실시간 캐시, refresh token | collector, sensor-api, management |
-
-***
-
-### 11. 마이그레이션
-
-| 경로                                 | 설명                    |
-| ---------------------------------- | --------------------- |
-| `management/database/migrations/`  | 수동 스키마 변경 SQL         |
-| `management/database/pg-client.js` | 앱 기동 시 DDL·인덱스·트리거 확인 |
-
-스키마 변경 시 `pg-client.js`와 migration SQL을 함께 맞춘다.
