@@ -392,15 +392,6 @@ flowchart TD
 | `sendAlarmSMS(...)`                          | `alarm/notifier.js`      | 문자 본문 구성, Aligo 발송, 이력 기록                                                  |
 | `logAlarmSMS(...)`                           | `alarm/alarm-logger.js`  | `alarm-log` 버킷에 발송 내역 기록                                                   |
 
-#### 3.4 HTTP 엔드포인트
-
-| 메서드·경로                                 | 처리                                                                  |
-| -------------------------------------- | ------------------------------------------------------------------- |
-| `GET /health`                          | 서버 상태 확인                                                            |
-| `POST /internal/clear-threshold-cache` | 임계값 캐시 초기화. 관리 서버가 호출                                               |
-| `POST /api/bulk_data_aggr`             | bulk/FFT 본문 검증 → `processBulkData` → 알람 `fft` → WebSocket           |
-| `POST /api/lora`                       | `{ key, isGdms, data }` 검증 후 `processLoRaData` 또는 `processGdmsData` |
-
 ***
 
 ### 4. 구현 시 주의사항
