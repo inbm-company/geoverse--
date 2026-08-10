@@ -13,15 +13,15 @@
 ```mermaid
 flowchart TB
     MQTT["MQTT 브로커"] --> MH["mqtt-handler"]
-    HTTP_BULK["POST /api/bulk_data_aggr"] --> SRV
     HTTP_LORA["POST /api/lora"] --> SRV
     MH --> SRV["server.js"]
 
     SRV -->|MQTT sensdata·sysinfo| PP[parseProxy]
-    SRV -->|HTTP bulk| PB[processBulkData]
+    SRV -->|MQTT bulk_data_aggr| PB[processBulkData]
 
     PP --> FIX[normalizeFixedValues]
     FIX --> RD[(Redis ZSET)]
+    FIX --> AL[alarm-system.processAlarm]
     PB --> IW[influx/data-writer]
 
     RD --> BS[batch-scheduler 10분 크론] --> IW
@@ -29,7 +29,6 @@ flowchart TB
     INF --> AGG[influx/aggregation 1h·1d]
     AGG --> INF
 
-    RD --> AL[alarm-system.processAlarm]
     PB --> AL
     AL --> PG[(PostgreSQL 임계값·위젯·연락처)]
     AL --> NT[notifier Aligo SMS]
@@ -40,14 +39,13 @@ flowchart TB
 
 #### 1.2 수신 경로별 처리 분기
 
-| 수신 경로                            | 파서                   | Redis | InfluxDB | 알람       | WebSocket |
-| -------------------------------- | -------------------- | ----- | -------- | -------- | --------- |
-| `/geocus900/+/sensdata`          | `parseSensdataArray` | 저장    | 10분 배치   | `sensor` | v2        |
-| `/catM1/+/sensdata`              | `parseSensdataArray` | 저장    | 10분 배치   | `sensor` | v2        |
-| `sysinfo` (`MQTT_TOPIC`)         | `parseTempData`      | 저장    | 10분 배치   | `sensor` | v2        |
-| `POST /api/bulk_data_aggr`       | `parseBulkData` (통과) | 없음    | 즉시 저장    | `fft`    | v2        |
-| `POST /api/lora`                 | 없음                   | 없음    | 즉시 저장    | 없음       | v2        |
-| `POST /api/lora` (`isGdms=true`) | 없음                   | 없음    | 즉시 저장    | 없음       | 없음        |
+| 수신 경로                            | 파서                   | Redis | InfluxDB | WebSocket |
+| -------------------------------- | -------------------- | ----- | -------- | --------- |
+| `/geocus900/+/sensdata`          | `parseSensdataArray` | 저장    | 10분 배치   | v2        |
+| `/catM1/+/sensdata`              | `parseSensdataArray` | 저장    | 10분 배치   | v2        |
+| `bulk_data_aggr`                 | `parseBulkData` (통과) | 없음    | 즉시 저장    | v2        |
+| `POST /api/lora`                 | 없음                   | 없음    | 즉시 저장    | v2        |
+| `POST /api/lora` (`isGdms=true`) | 없음                   | 없음    | 즉시 저장    | v2        |
 
 MQTT 일반 경로는 파싱 후 `normalizeFixedValues`로 특정 센서·채널 값을 보정한 뒤 Redis에 저장한다.
 
@@ -81,32 +79,6 @@ MQTT 일반 경로는 파싱 후 `normalizeFixedValues`로 특정 센서·채널
 | `data[].data`    | 객체 또는 숫자                                    |
 
 날짜 문자열은 `YYYY-MM-DD HH:mm:SS`, `YYYY-MM-DD-HH:mm:SS`, `YYYY:MM:DD:HH:mm:SS` 등 구분자 `:` / `-` 혼용을 허용한다.
-
-**channels 배열형 — `sysinfo` 등**
-
-`parseTempData`가 처리한다. `data-mapping.js`에 매핑이 있으면 필드명을 변환하고, 없으면 원본 키를 그대로 쓴다.
-
-```json
-{
-  "id": "001e065105c2",
-  "time": "2026-07-29 15:20:00",
-  "channels": [
-    {
-      "name": "ch3",
-      "type": "real",
-      "data": { "TEMP": 25.1, "WS": 3.2, "WD": 180 }
-    }
-  ]
-}
-```
-
-| 필드                | 비고                          |
-| ----------------- | --------------------------- |
-| `id`              | 장비 ID (필수)                  |
-| `time`            | `YYYY-MM-DD HH:mm:SS` (KST) |
-| `channels[]`      | 필수 배열                       |
-| `channels[].name` | 채널명 (`ch3` 등)               |
-| `channels[].data` | `{ 필드명: number }`           |
 
 **bulk/FFT — `POST /api/bulk_data_aggr`**
 
@@ -331,7 +303,6 @@ flowchart TD
 | `collector/parse/parseProxy.js`             | 형식 판별 후 파서 선택                                  |
 | `collector/parse/sensdata-array-parse.js`   | 배열형 sensdata 파싱                                |
 | `collector/parse/tempDataParse.js`          | `channels` 배열 파싱                               |
-| `collector/parse/data-mapping.js`           | 센서·채널·필드 이름 매핑 표                               |
 | `collector/utils/fixed-value-normalizer.js` | 특정 센서·채널 수신값 보정                                |
 | `collector/influx/client.js`                | InfluxDB 싱글턴, 버킷 확인·생성                         |
 | `collector/influx/data-writer.js`           | 포인트 생성, 10분 집계, bulk·LoRa·GDMS 기록              |
@@ -399,7 +370,6 @@ flowchart TD
 1. **bulk/FFT 채널 번호는 100이 더해진다.** 저장·조회 양쪽에서 같은 규칙을 적용해야 한다. 조회 측은 `isFft=true`로 같은 보정을 한다.
 2. **LoRa 버킷 이름과 조회 식별자.** 기록 측은 `lora_{key}`를 만들지만 조회 API에는 접두사를 포함한 버킷 식별자를 넘겨야 한다.
 3. **타임스탬프 정밀도가 경로별로 다르다.** MQTT 배치·bulk·롤업은 나노초, LoRa·GDMS는 밀리초로 기록한다.
-4. **MQTT와 HTTP bulk 경로가 공존할 수 있다.** 운영 수신은 `POST /api/bulk_data_aggr` 기준이며, 코드에 MQTT `bulk_data_aggr` 구독이 남아 있으면 동일 처리로 수렴한다.
 
 ***
 
