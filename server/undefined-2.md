@@ -1,7 +1,5 @@
 # 수집 서버 — 프로그램 명세
 
-## 수집 서버 — 프로그램 명세
-
 **작성 기준**: `collector/server.js`, `mqtt-handler.js`, `legacy-sensor-handler.js`, `redis-storage.js`, `batch-scheduler.js`, `parse/*`, `correction/*`, `influx/*`, `alarm/*`, `utils/*`
 
 ***

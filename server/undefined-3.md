@@ -1,7 +1,5 @@
 # 고주파 분석 서버 — 프로그램 명세
 
-## 고주파 분석 서버 — 프로그램 명세
-
 **작성 기준**: `app/main.py`, `app/api/routes.py`, `app/core/config.py`, `app/core/scheduler.py`, `app/utils/filename_parser.py`, `app/processors/{file_processor,pipeline_processor,status_processor,calculator_registry}.py`, `app/calculators/{tension,acceleration,raw_acceleration,demo}_calculator.py`, `app/services/{http_downloader,decompressor,mqtt_publisher,chart_generator,chart_plots,data_processor}.py`
 
 ***
