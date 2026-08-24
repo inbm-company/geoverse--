@@ -1,13 +1,13 @@
 # 고주파 분석 서버 — 프로그램 명세
 
-**작성 기준**: `app/main.py`, `app/api/routes.py`, `app/core/config.py`, `app/core/scheduler.py`, `app/utils/filename_parser.py`, `app/processors/{file_processor,pipeline_processor,status_processor,calculator_registry}.py`, `app/calculators/{tension,acceleration,raw_acceleration,demo}_calculator.py`, `app/services/{http_downloader,decompressor,mqtt_publisher,chart_generator,chart_plots,data_processor}.py`
+**작성 기준**: `app/main.py`, `app/api/routes.py`, `app/core/config.py`, `app/utils/filename_parser.py`, `app/processors/{file_processor,pipeline_processor,status_processor,calculator_registry}.py`, `app/calculators/{tension,acceleration,raw_acceleration,demo}_calculator.py`, `app/services/{http_downloader,decompressor,mqtt_publisher,chart_generator,chart_plots,data_processor}.py`
 
 ***
 
 ### 폴더 구조
 
 ```
-dist/                                       
+dist/
 ├── app/                                        # FastAPI 애플리케이션
 │   ├── api/                                    # API 엔드포인트
 │   │   ├── __init__.py                         # Python 패키지 표시 파일
@@ -23,8 +23,7 @@ dist/
 │   │   │   ├── models/                         # 향후 API 모델을 위한 빈 폴더
 │   │   │   └── routes/                         # 향후 API 라우트를 위한 빈 폴더
 │   │   ├── __init__.py                         # Python 패키지 표시 파일
-│   │   ├── config.py                           # 수집 대상과 계산기 기본 설정
-│   │   └── scheduler.py                        # 자동 처리 예약 작업 관리
+│   │   └── config.py                           # 수집 대상과 계산기 기본 설정
 │   ├── formulas/                               # 향후 계산식 분리를 위한 빈 폴더
 │   ├── processors/                             # 업로드·자동 처리 흐름 조립
 │   │   ├── __init__.py                         # Python 패키지 표시 파일
@@ -81,7 +80,7 @@ flowchart TB
     MQ --> BR[(MQTT 브로커)]
 ```
 
-미들웨어는 등록하지 않는다. `main.py`가 하는 일은 라우터 등록(`prefix="/api/v1"`)과 `data` 폴더를 `/results`로 정적 제공하는 것뿐이다. `lifespan`에는 스케줄러 시작·정지 코드가 있으나 주석 처리되어 있어 실제로는 아무것도 하지 않는다.
+미들웨어는 등록하지 않는다. `main.py`는 라우터를 등록하고(`prefix="/api/v1"`) `data` 폴더를 `/results`로 정적 제공한다.
 
 #### 1.2 엔드포인트 구성
 
@@ -291,22 +290,20 @@ flowchart TB
 | 대상 파일명을 만들 때     | `HTTPDownloader.generate_filename()` (10분 내림 후 −10분)         |
 | 단건 다운로드·재시도      | `download_file()` → `_download_single_file()`                |
 | 중복 수신을 막을 때      | `_is_already_downloaded()`, `_update_sensor_last_download()` |
-| 주기 실행을 걸 때       | `BackgroundScheduler.start()` (현재 호출 안 함)                    |
 
 자동 다운로드 파일명은 `{id}_{type}_{channel}_{timestamp}.zip`로, 업로드 규칙과 달리 **축 필드가 없다.** 그래서 이 경로는 `parse_filename()`을 쓰지 않고 `settings.sensors`의 `axes` 값을 사용한다.
 
 #### 1.10 설정 기본값
 
-| 구분  | 항목              | 기본값                                   | 정의 위치                    |
-| --- | --------------- | ------------------------------------- | ------------------------ |
-| 수집  | `base_url`      | `http://14.58.82.209:44000/zip_data/` | `Settings`               |
-| 수집  | 재시도·지연·타임아웃     | 3회 / 2초 / 30초                         | `Settings`               |
-| 수집  | `cron_schedule` | `2,7,...,57 * * * *`                  | `Settings`               |
-| 장력  | 케이블 길이·단위중량     | 210.6m / 0.513kN/m                    | `CableParameters`        |
-| 장력  | 샘플링·필터 대역       | 50Hz / 0.5\~22Hz                      | `CableParameters`        |
-| 장력  | 기본진동수 탐색·최대 배음  | 2\~8Hz / 12차                          | `CableParameters`        |
-| 가속도 | 필터 대역·차수        | 0.5\~24.5Hz / 4차                      | `AccelerationParameters` |
-| 공통  | 중력 상수           | 9.80665                               | 각 파라미터 dataclass         |
+| 구분  | 항목             | 기본값                                   | 정의 위치                    |
+| --- | -------------- | ------------------------------------- | ------------------------ |
+| 수집  | `base_url`     | `http://14.58.82.209:44000/zip_data/` | `Settings`               |
+| 수집  | 재시도·지연·타임아웃    | 3회 / 2초 / 30초                         | `Settings`               |
+| 장력  | 케이블 길이·단위중량    | 210.6m / 0.513kN/m                    | `CableParameters`        |
+| 장력  | 샘플링·필터 대역      | 50Hz / 0.5\~22Hz                      | `CableParameters`        |
+| 장력  | 기본진동수 탐색·최대 배음 | 2\~8Hz / 12차                          | `CableParameters`        |
+| 가속도 | 필터 대역·차수       | 0.5\~24.5Hz / 4차                      | `AccelerationParameters` |
+| 공통  | 중력 상수          | 9.80665                               | 각 파라미터 dataclass         |
 
 외부·하드코딩 설정의 `params`는 `_normalize_params()` → `_coerce_param_value()`가 데이터 클래스(dataclass) 필드에 맞게 덮어쓴다. 정의에 없는 키는 무시되고, 변환 실패는 `ValueError`가 된다.
 
@@ -321,7 +318,6 @@ flowchart TB
 | `app/main.py`                           | FastAPI 앱 생성, 라우터 등록, `/results` 정적 제공, `lifespan`             |
 | `app/api/routes.py`                     | 엔드포인트 정의, 파일명 검증, 오류 코드 매핑                                     |
 | `app/core/config.py`                    | `Settings`, `HARDCODED_CALCULATOR_CONFIGS`, `CABLE_PARAMETERS` |
-| `app/core/scheduler.py`                 | `BackgroundScheduler` (cron 표현식 기반 예약 실행)                      |
 | `app/utils/filename_parser.py`          | 파일명 → 센서 파라미터                                                  |
 | `app/processors/file_processor.py`      | 업로드 처리 전체 조립, 계산기 설정 조회                                        |
 | `app/processors/pipeline_processor.py`  | 자동 수집 처리 전체 조립                                                 |
@@ -369,7 +365,6 @@ flowchart TB
 | 외부 서버에서 ZIP 파일 받기    | `HTTPDownloader.download_all_sensors()`                                                          |
 | 자동 수집 한 바퀴 돌리기       | `pipeline_processor.process_pipeline()`                                                          |
 | 서버·수집 상태 확인          | `status_processor.get_health_status()` / `get_cable_status()` / `get_system_status()`            |
-| 주기 실행 켜기             | `main.lifespan`의 `scheduler.start()` 주석 해제                                                       |
 | **새 계산 방식 추가**       | `calculators/`에 `process()` 규약을 지키는 클래스 추가 → `calculator_registry.CALCULATOR_MAP`에 `func_key` 등록 |
 | **새 차트 종류 추가**       | `chart_plots._plot_*()` 추가 → `generate_chart()`에 분기 추가 → `create_*_chart()` 보조 함수 추가             |
 | **센서별 파라미터 변경**      | `core/config.HARDCODED_CALCULATOR_CONFIGS` 수정, 또는 외부 설정 API 값 변경                                 |
@@ -389,8 +384,7 @@ flowchart TB
 | `upload_and_process_file()`                                          | `api/routes.py`         | 파일명 파싱 실패는 400, 처리 결과의 오류 문구에 데이터 품질 키워드가 있으면 400, 나머지는 500으로 매핑        |
 | `process_uploaded_file()`                                            | `file_processor.py`     | 저장 → 해제 → 계산기 결정 → 축별 계산 → 병합 발행 → 응답 조립. `finally`에서 `extracted` 폴더 삭제 |
 | `process_pipeline()`                                                 | `pipeline_processor.py` | 전체 센서 다운로드 후 성공한 첫 센서 하나만 장력 계산·발행                                      |
-| `run_scheduled_pipeline()`                                           | `main.py`               | `httpx`로 자기 자신의 `/api/v1/process`를 호출                                   |
-| `get_cable_status()` / `get_system_status()` / `get_health_status()` | `status_processor.py`   | 기본 케이블 파라미터, 센서·스케줄러 상태, 헬스체크                                           |
+| `get_cable_status()` / `get_system_status()` / `get_health_status()` | `status_processor.py`   | 기본 케이블 파라미터, 센서 상태, 헬스체크                                                |
 
 #### 3.2 설정·파싱
 
@@ -418,11 +412,11 @@ flowchart TB
 
 #### 3.4 출력
 
-| 함수                           | 위치                      | 설명                                   |
-| ---------------------------- | ----------------------- | ------------------------------------ |
-| `generate_chart()`           | `chart_generator.py`    | 크기·눈금·테두리·여백 등 공통 스타일 적용 후 저장        |
-| `create_*_chart()`           | `chart_generator.py`    | 종류별 `config`를 구성하는 보조 함수             |
-| `_plot_*()`                  | `chart_plots.py`        | 종류별 실제 그리기                           |
-| `generate_result_filename()` | 각 계산기                   | 센서·시각·종류·축을 담은 PNG 파일명 생성            |
-| `_build_plot_paths()`        | `tension_calculator.py` | `raw`·`fft` 폴더 경로 조립 및 생성            |
-| `publish()`                  | `mqtt_publisher.py`     | <p></p><p>접속 → 발행 → 종료를 3회까지 재시도</p> |
+| 함수                           | 위치                      | 설명                            |
+| ---------------------------- | ----------------------- | ----------------------------- |
+| `generate_chart()`           | `chart_generator.py`    | 크기·눈금·테두리·여백 등 공통 스타일 적용 후 저장 |
+| `create_*_chart()`           | `chart_generator.py`    | 종류별 `config`를 구성하는 보조 함수      |
+| `_plot_*()`                  | `chart_plots.py`        | 종류별 실제 그리기                    |
+| `generate_result_filename()` | 각 계산기                   | 센서·시각·종류·축을 담은 PNG 파일명 생성     |
+| `_build_plot_paths()`        | `tension_calculator.py` | `raw`·`fft` 폴더 경로 조립 및 생성     |
+| `publish()`                  | `mqtt_publisher.py`     | 접속 → 발행 → 종료를 3회까지 재시도        |
