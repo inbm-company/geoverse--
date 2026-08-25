@@ -32,7 +32,6 @@
 * PostgreSQL 메타데이터 **쓰기·조회** (데이터 접근 계층)
 * Access/Refresh Token 발급, Redis에 Refresh Token·로그아웃 토큰 목록 관리
 * 임계값 변경·삭제 후 Collector `POST /internal/clear-threshold-cache` 호출
-* Redis Sorted Set(ZSET) 백업 스케줄(매일), 성공 시 구간 데이터 삭제
 * InfluxDB `alarm-log` 버킷에서 알람 이력 조회
 * 고주파 분석 서버가 위젯 **설정 조회** (`/api/sensor-widgets/by-device-channel`)
 
@@ -67,7 +66,6 @@
 **하는 일**
 
 * 수신 데이터 파싱·특정 센서 값 보정(`normalizeFixedValues`)
-* Redis Sorted Set(ZSET)에 저장, 10분마다 InfluxDB에 집계 → 1시간·1일 단위로 재집계
 * PostgreSQL에서 임계값·위젯·연락처 **읽어** 알람 판정, SMS 발송, `alarm-log` 버킷 기록
 * Socket.IO로 연결 시 `latest-data`·`latest-data-v2`, 수집 시 `sensor-data`·`sensor-data-v2` 전송
 * 고주파 분석 서버가 MQTT `bulk_data_aggr`로 보낸 **집계 결과** 수신·저장
@@ -249,7 +247,7 @@ flowchart LR
 
 * **Collector** (`collector/redis-storage.js`) — 수집 데이터 저장·10분 배치 입력용 구간 조회·보존 기간 정리.
 * **Sensor API** (`sensor-api/data-access/redis-reader.js`) — `/api/sensors/realtime`, `/api/latest/:sensorId` 등 **읽기만**.
-* **Management** (`management/services/token-service.js`, `redis-backup.js`) — 인증 토큰, Redis ZSET **백업 후 구간 삭제**(스케줄러).
+* **Management** (`management/services/token-service.js`) — 인증 토큰.
 * **고주파 분석** — 사용하지 않는다.
 
 Redis에 없는 **24시간 이전** 구간은 Sensor API의 InfluxDB 기간 조회 API를 이용한다.

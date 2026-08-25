@@ -55,7 +55,6 @@ management/
 │   └── index.js                                # 사용자 등록·조회·수정·삭제
 ├── api.js                                      # 도메인별 API 라우터 연결
 ├── backup-scheduler.js                         # Redis 백업 예약 작업 실행
-├── redis-backup.js                             # 외부 백업 요청 후 성공 구간 삭제
 ├── redis-client.js                             # 백업용 Redis 데이터 조회·삭제
 └── server.js                                   # 관리 서버 시작과 공통 미들웨어 설정
 ```
@@ -385,20 +384,6 @@ flowchart LR
 | 실패 처리  | 경고만 남기고 API는 성공 응답                               |
 
 호출 시점은 임계값 일괄 저장(`POST /:siteCode`)과 장비 단위 삭제(`DELETE /device/:deviceId`) 직후다.
-
-**1.8 백업 스케줄러**
-
-```mermaid
-flowchart TD
-    A["서버 시작 startBackupScheduler"] --> B["Redis 연결"]
-    B --> C["매일 00:30 크론"]
-    C --> D["getSensorDataCount"]
-    D --> E["외부 백업 API로 대상 구간 요청"]
-    E -->|성공| F["cleanupOldData 구간 삭제"]
-    E -->|실패| G["중단, 데이터 유지"]
-```
-
-대상 구간은 이틀 전 하루 전체(`00:00:00.000` \~ `23:59:59.999`)이고, 외부 백업 API가 성공을 반환한 경우에만 `timeseries:{sensorId}:*` 키에서 해당 점수 범위를 삭제한다. 백업 대상 센서 ID는 현재 `redis-backup.js`에 고정되어 있다.
 
 ***
 
