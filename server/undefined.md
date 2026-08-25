@@ -1,6 +1,6 @@
 # 관리 서버 — 프로그램 명세
 
-**작성 기준**: `management/server.js`, `api.js`, `database/pg-client.js`, `database/repositories/*`, `auth-api/*`, `middleware/auth.js`, `services/token-service.js`, 도메인별 `*-api/index.js`, `backup-scheduler.js`, `redis-backup.js`
+**작성 기준**: `management/server.js`, `api.js`, `database/pg-client.js`, `database/repositories/*`, `auth-api/*`, `middleware/auth.js`, `services/token-service.js`, 도메인별 `*-api/index.js`
 
 ```
 management/
@@ -54,8 +54,6 @@ management/
 ├── user-api/                                   # 사용자 관리 API
 │   └── index.js                                # 사용자 등록·조회·수정·삭제
 ├── api.js                                      # 도메인별 API 라우터 연결
-├── backup-scheduler.js                         # Redis 백업 예약 작업 실행
-├── redis-client.js                             # 백업용 Redis 데이터 조회·삭제
 └── server.js                                   # 관리 서버 시작과 공통 미들웨어 설정
 ```
 
@@ -82,7 +80,7 @@ flowchart TB
     D1 -->|토큰| RD[(Redis)]
 ```
 
-미들웨어는 `helmet` → `cors` → `express.json` → `morgan` → `/images/blueprint` 정적 이미지 제공 → OPTIONS 처리 순서로 등록된다. 서버 시작 시 PostgreSQL에 연결해 `initializeTables()`로 테이블·인덱스·트리거를 확인하고, 위젯 채널 캐시를 미리 적재한 뒤 백업 스케줄러를 시작한다.
+미들웨어는 `helmet` → `cors` → `express.json` → `morgan` → `/images/blueprint` 정적 이미지 제공 → OPTIONS 처리 순서로 등록된다. 서버 시작 시 PostgreSQL에 연결해 `initializeTables()`로 테이블·인덱스·트리거를 확인하고, 위젯 채널 캐시를 미리 적재한다.
 
 **1.2 API 라우터 구성**
 
@@ -391,17 +389,14 @@ flowchart LR
 
 **2.1 기반 모듈**
 
-| 파일                                     | 역할                                                  |
-| -------------------------------------- | --------------------------------------------------- |
-| `management/server.js`                 | 서버 초기화, 정적 이미지 제공, PostgreSQL 연결, 캐시 사전 적재, 스케줄러 시작 |
-| `management/api.js`                    | 도메인 라우터 등록                                          |
-| `management/database/pg-client.js`     | 커넥션 풀, 스키마 초기화, 트랜잭션                                |
-| `management/database/repositories/*`   | 테이블별 SQL 실행                                         |
-| `management/services/token-service.js` | JWT 발급·검증, 갱신 토큰·블랙리스트                              |
-| `management/middleware/auth.js`        | 토큰 검증 미들웨어                                          |
-| `management/redis-client.js`           | 백업용 Redis Sorted Set(ZSET) 조회·삭제                    |
-| `management/backup-scheduler.js`       | 백업 예약 작업(cron)                                      |
-| `management/redis-backup.js`           | 백업 요청과 정리 실행                                        |
+| 파일                                     | 역할                                         |
+| -------------------------------------- | ------------------------------------------ |
+| `management/server.js`                 | 서버 초기화, 정적 이미지 제공, PostgreSQL 연결, 캐시 사전 적재 |
+| `management/api.js`                    | 도메인 라우터 등록                                 |
+| `management/database/pg-client.js`     | 커넥션 풀, 스키마 초기화, 트랜잭션                       |
+| `management/database/repositories/*`   | 테이블별 SQL 실행                                |
+| `management/services/token-service.js` | JWT 발급·검증, 갱신 토큰·블랙리스트                     |
+| `management/middleware/auth.js`        | 토큰 검증 미들웨어                                 |
 
 **2.2 도메인 라우터와 엔드포인트**
 
@@ -512,7 +507,6 @@ flowchart LR
 | `groupAlarmLogs(rows)`                                                                      | `alarm-log-api/index.js`      | InfluxDB 행을 시각·센서·채널 단위로 병합                            |
 | `uploadBlueprintImage(req, res)`                                                            | `blueprint-api/index.js`      | `multipart/form-data` 업로드 후 경로를 DB에 반영                 |
 | `clearCollectorCache()`                                                                     | `threshold-api/index.js`      | 수집 서버 임계값 캐시 초기화 요청                                    |
-| `startRedisBackupProcess()`                                                                 | `redis-backup.js`             | 백업 요청 후 성공 시 Redis 구간 삭제                               |
 
 ***
 
