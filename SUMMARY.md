@@ -34,6 +34,7 @@
   * [센서 조회 서버 — 프로그램 명세](server/undefined-1.md)
   * [수집 서버 — 프로그램 명세](server/undefined-2.md)
   * [고주파 분석 서버 — 프로그램 명세](server/undefined-3.md)
+  * [백업 워커 — 프로그램 명세](<server/undefined-5 (1).md>)
 * [DB](db/README.md)
   * [PostgreSQL](db/postgresql.md)
   * [InfluxDB](db/influxdb.md)
